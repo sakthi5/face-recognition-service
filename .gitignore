@@ -17,3 +17,6 @@ __pycache__/
 
 # Generated attendance images
 data/attendance/
+
+# Employee source images
+data/employees/
