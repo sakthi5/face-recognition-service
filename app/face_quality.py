@@ -9,13 +9,16 @@ MAX_BRIGHTNESS = 220
 MIN_FACE_WIDTH_RATIO = 0.15
 MAX_FACE_WIDTH_RATIO = 0.75
 
+MIN_DETECTION_SCORE = 0.60
+MIN_SHARPNESS = 80.0
+
 
 class FaceQualityChecker:
 
     def check(self, frame, faces):
         """
         Check whether the current frame is suitable
-        for face verification.
+        for face verification or registration.
         """
 
         # -----------------------------
@@ -46,13 +49,42 @@ class FaceQualityChecker:
         face = faces[0]
 
         # -----------------------------
-        # 3. TOO DARK / TOO BRIGHT
+        # 3. LOW DETECTION CONFIDENCE
         # -----------------------------
+        if float(face.det_score) < MIN_DETECTION_SCORE:
+            return {
+                "success": False,
+                "status": "LOW_CONFIDENCE",
+                "message": (
+                    "Could not clearly detect your face. "
+                    "Please try again with better lighting."
+                ),
+                "det_score": float(face.det_score)
+            }
+
         gray = cv2.cvtColor(
             frame,
             cv2.COLOR_BGR2GRAY
         )
 
+        # -----------------------------
+        # 4. TOO BLURRY
+        # -----------------------------
+        sharpness = cv2.Laplacian(gray, cv2.CV_64F).var()
+
+        if sharpness < MIN_SHARPNESS:
+            return {
+                "success": False,
+                "status": "TOO_BLURRY",
+                "message": (
+                    "Image is too blurry. Please hold the camera steady."
+                ),
+                "sharpness": sharpness
+            }
+
+        # -----------------------------
+        # 5. TOO DARK / TOO BRIGHT
+        # -----------------------------
         brightness = float(np.mean(gray))
 
         if brightness < MIN_BRIGHTNESS:
@@ -91,7 +123,7 @@ class FaceQualityChecker:
         )
 
         # -----------------------------
-        # 4. FACE TOO FAR
+        # 6. FACE TOO FAR
         # -----------------------------
         if face_width_ratio < MIN_FACE_WIDTH_RATIO:
             return {
@@ -104,7 +136,7 @@ class FaceQualityChecker:
             }
 
         # -----------------------------
-        # 5. FACE TOO CLOSE
+        # 7. FACE TOO CLOSE
         # -----------------------------
         if face_width_ratio > MAX_FACE_WIDTH_RATIO:
             return {
@@ -117,14 +149,8 @@ class FaceQualityChecker:
             }
 
         # -----------------------------
-        # 6. FACE TURNED
+        # 8. FACE TURNED
         # -----------------------------
-        #
-        # InsightFace provides facial landmarks.
-        # We will use the 5-point landmarks
-        # to estimate whether the face is facing forward.
-        #
-
         landmarks = face.kps
 
         if landmarks is not None:
@@ -145,8 +171,6 @@ class FaceQualityChecker:
                 nose[0] - eye_center_x
             )
 
-            # If nose is significantly away from
-            # the eye center, face may be turned.
             if eye_distance > 0:
 
                 turn_ratio = (

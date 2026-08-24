@@ -6,6 +6,7 @@ import numpy as np
 from app.verify_face import FaceVerifier
 from app.face_quality import FaceQualityChecker
 from fastapi.middleware.cors import CORSMiddleware
+from app.embedding_store import save_or_update_embedding
 
 
 
@@ -118,4 +119,60 @@ async def verify_face(
             "success": False,
             "status": "ERROR",
             "message": "Face verification failed."
+        }
+
+@app.post("/embed")
+async def embed_face(
+    employee_id: str = Form(...),
+    image: UploadFile = File(...)
+):
+    try:
+        image_bytes = await image.read()
+
+        image_array = np.frombuffer(
+            image_bytes,
+            np.uint8
+        )
+
+        frame = cv2.imdecode(
+            image_array,
+            cv2.IMREAD_COLOR
+        )
+
+        if frame is None:
+            return {
+                "success": False,
+                "status": "INVALID_IMAGE",
+                "message": "Could not read the uploaded image."
+            }
+
+        faces = face_verifier.app.get(frame)
+
+        quality_result = quality_checker.check(frame, faces)
+
+        if not quality_result.get("success"):
+            return quality_result
+
+        embedding = faces[0].embedding
+        embedding = embedding / np.linalg.norm(embedding)
+
+        status = save_or_update_embedding(employee_id, embedding)
+
+        return {
+            "success": True,
+            "status": status,
+            "message": (
+                "Employee face registered successfully."
+                if status == "REGISTERED"
+                else "Employee face updated successfully."
+            )
+        }
+
+    except Exception as error:
+        print("API embedding error:", error)
+
+        return {
+            "success": False,
+            "status": "ERROR",
+            "message": "Face registration failed."
         }

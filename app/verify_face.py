@@ -1,6 +1,6 @@
-import pickle
 import numpy as np
 from insightface.app import FaceAnalysis
+from app.embedding_store import get_stored_embedding
 
 
 SIMILARITY_THRESHOLD = 0.50
@@ -26,15 +26,18 @@ class FaceVerifier:
 
     def load_employee_embedding(self, employee_id):
         """
-        Load the stored embedding for the employee.
+        Load the stored embedding for the employee from MongoDB.
         """
 
-        path = f"data/embeddings/{employee_id}.pkl"
+        embedding = get_stored_embedding(employee_id)
 
-        with open(path, "rb") as file:
-            embedding = pickle.load(file)
+        if embedding is None:
+            raise FileNotFoundError(
+                f"No embedding found for employee {employee_id}"
+            )
 
-        return embedding
+        return np.array(embedding)
+        
 
     def verify(self, frame, employee_id):
         """
