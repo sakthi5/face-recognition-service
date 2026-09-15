@@ -1,13 +1,32 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException, Depends
 from contextlib import asynccontextmanager
+import os
 import cv2
 import numpy as np
+from dotenv import load_dotenv
 
 from app.verify_face import FaceVerifier
 from app.face_quality import FaceQualityChecker
 from fastapi.middleware.cors import CORSMiddleware
-from app.embedding_store import save_or_update_embedding
+from app.embedding_store import save_or_update_embedding, delete_embedding, find_duplicate_face
 
+load_dotenv()
+
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
+
+
+def verify_admin_api_key(x_api_key: str = Header(None)):
+    """
+    Simple shared-secret guard for admin-only endpoints
+    (e.g. deleting an employee's face data).
+    """
+    if not ADMIN_API_KEY or x_api_key != ADMIN_API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key."
+        )
+
+    return True
 
 
 face_verifier = None
@@ -156,6 +175,28 @@ async def embed_face(
         embedding = faces[0].embedding
         embedding = embedding / np.linalg.norm(embedding)
 
+        # Make sure this face isn't already registered under a
+        # DIFFERENT employee_id before storing it (one face = one id).
+        duplicate_employee_id = find_duplicate_face(
+            embedding,
+            exclude_employee_id=employee_id
+        )
+
+        if duplicate_employee_id is not None:
+            print(
+                f"Duplicate face: new enrollment for '{employee_id}' "
+                f"matches existing employee '{duplicate_employee_id}'."
+            )
+
+            return {
+                "success": False,
+                "status": "DUPLICATE_FACE",
+                "message": (
+                    "This face is already registered under a "
+                    "different employee ID."
+                )
+            }
+
         status = save_or_update_embedding(employee_id, embedding)
 
         return {
@@ -175,4 +216,32 @@ async def embed_face(
             "success": False,
             "status": "ERROR",
             "message": "Face registration failed."
+        }
+
+
+@app.delete("/employees/{employee_id}")
+async def delete_employee(
+    employee_id: str,
+    authorized: bool = Depends(verify_admin_api_key)
+):
+    try:
+        status = delete_embedding(employee_id)
+
+        return {
+            "success": status == "DELETED",
+            "status": status,
+            "message": (
+                "Employee face data deleted successfully."
+                if status == "DELETED"
+                else "No face data found for this employee."
+            )
+        }
+
+    except Exception as error:
+        print("API deletion error:", error)
+
+        return {
+            "success": False,
+            "status": "ERROR",
+            "message": "Employee deletion failed."
         }

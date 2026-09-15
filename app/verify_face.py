@@ -1,9 +1,6 @@
 import numpy as np
 from insightface.app import FaceAnalysis
-from app.embedding_store import get_stored_embedding
-
-
-SIMILARITY_THRESHOLD = 0.50
+from app.embedding_store import get_stored_embedding, SIMILARITY_THRESHOLD
 
 
 
