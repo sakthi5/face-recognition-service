@@ -62,8 +62,12 @@ def find_duplicate_face(embedding, exclude_employee_id=None):
     own (so re-enrolling the same person under their own id is never
     flagged as a duplicate of themselves).
 
-    Returns the matching employee_id if the face is already registered
-    under a different id, or None if the face is unique.
+    Returns a (employee_id, similarity) tuple:
+      - employee_id is the closest match's id if it's over
+        SIMILARITY_THRESHOLD (a duplicate), otherwise None.
+      - similarity is always the score of the single closest match
+        found, even when it's None, so callers can log/inspect
+        near-misses instead of only knowing "no duplicate found".
     """
     normalized_new = embedding / np.linalg.norm(embedding)
 
@@ -71,16 +75,23 @@ def find_duplicate_face(embedding, exclude_employee_id=None):
     if exclude_employee_id is not None:
         query["employee_id"] = {"$ne": exclude_employee_id}
 
+    best_employee_id = None
+    best_similarity = -1.0
+
     for document in embeddings_collection.find(query):
         stored = np.array(document["embedding"])
         stored = stored / np.linalg.norm(stored)
 
         similarity = float(np.dot(normalized_new, stored))
 
-        if similarity >= SIMILARITY_THRESHOLD:
-            return document["employee_id"]
+        if similarity > best_similarity:
+            best_similarity = similarity
+            best_employee_id = document["employee_id"]
 
-    return None
+    if best_similarity >= SIMILARITY_THRESHOLD:
+        return best_employee_id, best_similarity
+
+    return None, best_similarity
 
 
 def delete_embedding(employee_id):

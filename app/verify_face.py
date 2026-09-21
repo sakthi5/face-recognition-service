@@ -11,12 +11,13 @@ class FaceVerifier:
 
         self.app = FaceAnalysis(
             name="buffalo_l",
+            allowed_modules=["detection", "recognition"],
             providers=["CPUExecutionProvider"]
         )
 
         self.app.prepare(
             ctx_id=0,
-            det_size=(640, 640)
+            det_size=(320, 320)
         )
 
         print("Face recognition model loaded.")
