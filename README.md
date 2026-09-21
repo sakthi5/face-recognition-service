@@ -7,6 +7,7 @@ Python FastAPI backend for employee face verification, backed by MongoDB and Ins
 * Employee face enrollment (embedding generation)
 * Employee face verification
 * Employee deletion (admin-only)
+* Duplicate-face detection (one face can only be enrolled under one employee ID)
 * No face detection
 * Multiple faces detection
 * Low detection confidence check
@@ -319,11 +320,7 @@ Employee face embeddings are stored in **MongoDB**, not on disk:
 
 ## Registering a New Employee
 
-Enroll an employee by calling `POST /embed` with their `employee_id` and a face photo (see [Example Requests](#example-requests) above). This is the primary, live enrollment path used by the API.
-
-### Legacy offline enrollment (optional)
-
-`app/register_employees.py` is a standalone script that predates the MongoDB integration. It reads employee photos/details from `app/employees.py` and writes `.pkl` embedding files to `data/embeddings/` — the live API (`/embed`, `/verify`) does **not** read these `.pkl` files, so this script is only useful for offline experimentation, not for actually provisioning employees.
+Enroll an employee by calling `POST /embed` with their `employee_id` and a face photo (see [Example Requests](#example-requests) above). This is the only enrollment path — the older `.pkl`-file/offline enrollment script has been removed since it predated the MongoDB integration and was never used by the live API.
 
 ## Removing an Employee
 
