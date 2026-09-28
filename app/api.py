@@ -81,7 +81,6 @@ def home():
 
 @app.get("/health")
 def health():
-    print("render")
     return {
         "status": "OK",
         "model_loaded": face_verifier is not None
@@ -120,8 +119,11 @@ def _run_verify(frame, employee_id):
     if not quality_result.get("success"):
         return quality_result
 
-    # Quality is good, now verify identity
-    return face_verifier.verify(frame, employee_id)
+    # Quality is good, now verify identity. Reuse the embedding from
+    # the detection pass above instead of re-running InsightFace.
+    current_embedding = faces[0].embedding
+
+    return face_verifier.verify(current_embedding, employee_id)
 
 
 def _run_embed(frame, employee_id):
