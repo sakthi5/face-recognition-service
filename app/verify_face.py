@@ -1,9 +1,6 @@
 import numpy as np
 from insightface.app import FaceAnalysis
-from app.embedding_store import get_stored_embedding
-
-
-SIMILARITY_THRESHOLD = 0.50
+from app.embedding_store import get_stored_embedding, SIMILARITY_THRESHOLD
 
 
 
@@ -14,12 +11,13 @@ class FaceVerifier:
 
         self.app = FaceAnalysis(
             name="buffalo_l",
+            allowed_modules=["detection", "recognition"],
             providers=["CPUExecutionProvider"]
         )
 
         self.app.prepare(
             ctx_id=0,
-            det_size=(640, 640)
+            det_size=(320, 320)
         )
 
         print("Face recognition model loaded.")
@@ -39,33 +37,17 @@ class FaceVerifier:
         return np.array(embedding)
         
 
-    def verify(self, frame, employee_id):
+    def verify(self, current_embedding, employee_id):
         """
-        Compare the detected face in the frame with
-        the logged-in employee's stored embedding.
+        Compare an already-extracted face embedding against the
+        logged-in employee's stored embedding.
+
+        Detection happens once, by the caller (the quality check
+        already needs it) - this only does the comparison, so a
+        /verify call doesn't pay for running InsightFace twice.
         """
 
         try:
-
-            # Get face from the captured frame
-            faces = self.app.get(frame)
-
-            if len(faces) == 0:
-                return {
-                    "success": False,
-                    "status": "NO_FACE",
-                    "message": "No face found for verification."
-                }
-
-            if len(faces) > 1:
-                return {
-                    "success": False,
-                    "status": "MULTIPLE_FACES",
-                    "message": "Only one person should be visible."
-                }
-
-            # Current face embedding
-            current_embedding = faces[0].embedding
 
             # Stored employee embedding
             stored_embedding = self.load_employee_embedding(
