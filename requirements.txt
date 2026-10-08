@@ -1,9 +1,17 @@
-fastapi
-uvicorn[standard]
-python-multipart
-opencv-python-headless
-numpy
-insightface
-onnxruntime
-pymongo[srv]
-python-dotenv
+# Versions pinned to match the tested environment (Python 3.11.9).
+#
+# NOTE: insightface depends on the full "opencv-python" package, so a fresh
+# install also pulls it in next to opencv-python-headless. On a headless
+# server that breaks `import cv2` (libGL.so.1 missing). After installing, run:
+#   pip uninstall -y opencv-python
+#   pip install --force-reinstall --no-deps opencv-python-headless==5.0.0.93
+
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32
+opencv-python-headless==5.0.0.93
+numpy==2.4.6
+insightface==1.0.1
+onnxruntime==1.29.0
+pymongo[srv]==4.17.0
+python-dotenv==1.2.3
